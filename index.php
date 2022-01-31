@@ -15,6 +15,9 @@
 			header('Location: '.$config['url'].'/login');
 			die();
 		}
+	} elseif(mb_strtolower(path(0)) === 'subscribe') {
+		// show the subscription form
+		require_once(ROOT.DS.'subscribeform.inc.php');
 	} else {
 		// redirect everything else to the homepage
 		if(!empty(path(0)) && path(0) != 'page') {

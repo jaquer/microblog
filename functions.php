@@ -63,6 +63,120 @@ function db_posts_count() {
 	return (int) $row['posts_count'];
 }
 
+function db_upsert_subscriber($email='', $ip, $key, $confirmed, $timestamp=NOW) {
+	global $config;
+	global $db;
+	if(empty($db)) return false;
+	if(empty($email)) return false;
+
+	$statement = $db->prepare('
+		INSERT INTO subscribers (
+			subscriber_email,
+			subscriber_confirmed,
+			subscriber_ip,
+			subscriber_key,
+			subscriber_timestamp
+		) VALUES (
+			:email,
+			:confirmed,
+			:ip,
+			:key,
+			:timestamp
+		) ON CONFLICT (subscriber_email) DO UPDATE SET
+			subscriber_confirmed = :confirmed,
+			subscriber_ip = :ip,
+			subscriber_key = :key,
+			subscriber_timestamp = :timestamp'
+	);
+
+	$statement->bindParam(':email', $email, PDO::PARAM_STR);
+	$statement->bindParam(':confirmed', $confirmed, PDO::PARAM_BOOL);
+	$statement->bindParam(':ip', $ip, PDO::PARAM_STR);
+	$statement->bindParam(':key', $key, PDO::PARAM_STR);
+	$statement->bindParam(':timestamp', $timestamp, PDO::PARAM_INT);
+
+	return $statement->execute();
+}
+
+function db_lookup_subscriber($key='') {
+	global $config;
+	global $db;
+	if(empty($db)) return false;
+	if(empty($key)) return false;
+
+	$statement = $db->prepare('SELECT * FROM subscribers WHERE subscriber_key = :key LIMIT 1');
+	$statement->bindParam(':key', $key, PDO::PARAM_STR);
+	$statement->execute();
+	$row = $statement->fetch(PDO::FETCH_ASSOC);
+
+	return (!empty($row)) ? $row['subscriber_email'] : false;
+}
+
+function db_lookup_confirmed_subscribers() {
+	global $config;
+	global $db;
+	if(empty($db)) return false;
+
+	$statement = $db->prepare('SELECT * FROM subscribers WHERE subscriber_confirmed = 1');
+	$statement->execute();
+	$rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+	return (!empty($rows)) ? $rows : false;
+}
+
+function email_subscribers($post_content, $post_id) {
+	global $config;
+	global $db;
+	if(empty($db)) return false;
+	if(empty($post_content)) return false;
+
+	$subscribers = db_lookup_confirmed_subscribers();
+
+	if (empty($subscribers)) return; // :cry:
+
+	$from = $config['email']['from'];
+	$bcc = implode(",", array_column($subscribers, 'subscriber_email'));
+
+	$subject = "New post on ";
+	$subject .= empty($config['microblog_account']) ? "" : $config['microblog_account'] . "'s ";
+	$subject .= "microblog - #" . $post_id;
+
+	$message = $post_content;
+	$message .= NL . NL . NL;
+	$message .= "-- " . NL . NL;
+	$message .= "View this post online: " . $config['url'] . "/" . $post_id . NL . NL;
+	$message .= "To unsubscribe, send your request to: " . $from . NL;
+
+	return send_email(null, $subject, $message, $from, array('Bcc' => $bcc));
+}
+
+function send_email($to, $subject, $message, $from='', $additional_headers=array()) {
+	global $config;
+	if (empty($from)) $from = $config['email']['from'];
+
+	$additional_headers['From'] = $from;
+	$additional_headers['Content-Type'] = 'text/plain;charset=utf-8';
+
+	/* https://www.php.net/manual/en/function.mail.php */
+	/* "Each line should be separated with a CRLF (\r\n)." */
+	$message = preg_replace("/\r\n|\r|\n/", "\r\n", $message);
+	/* "Lines should not be larger than 70 characters." */
+	$message = line_wrap($message);
+
+	return mail($to, $subject, $message, $additional_headers);
+}
+
+/* https://www.php.net/manual/en/function.wordwrap.php#58802 */
+function line_wrap($string, $width=70, $break="\r\n", $cut_long_words=false) {
+	$lines = explode($break, $string);
+	$string = "";
+	foreach($lines as $line) {
+		$string .= wordwrap($line, $width, $break, $cut_long_words);
+		$string .= $break;
+	}
+	return $string;
+}
+
 /* function that pings the official micro.blog endpoint for feed refreshes */
 function ping_microblog() {
 	global $config;

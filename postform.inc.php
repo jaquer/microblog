@@ -26,6 +26,7 @@
 				'message' => 'Successfully posted status #'.$id
 			);
 
+			email_subscribers($_POST['message'], $id);
 			rebuild_feed();
 			if($config['ping'] == true) ping_microblog();
 			if($config['crosspost_to_twitter'] == true) {

@@ -150,6 +150,7 @@ nav li + li a {
 }
 
 .login input[type="text"],
+.login input[type="email"],
 .login input[type="password"] {
 	width: 100%;
 	border: 2px solid #b5b5af;
@@ -160,7 +161,12 @@ nav li + li a {
 }
 
 .login input[type="text"]:focus,
+.login input[type="email"]:focus,
 .login input[type="password"]:focus {
 	border-color: #007aff;
 	outline: none;
+}
+
+.login input[type="email"]:invalid {
+	border-color: red;
 }

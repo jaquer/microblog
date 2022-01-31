@@ -33,6 +33,9 @@ $config = array(
 		'oauth_access_token_secret' => '',
 		'consumer_key' => '',
 		'consumer_secret' => ''
+	),
+	email => array(
+		from => ''
 	)
 );
 
@@ -43,6 +46,14 @@ try {
 		id integer PRIMARY KEY NOT NULL,
 		post_content TEXT,
 		post_timestamp integer(128)
+	);");
+	$db->exec("CREATE TABLE IF NOT EXISTS subscribers (
+		id integer PRIMARY KEY NOT NULL,
+		subscriber_email TEXT NOT NULL UNIQUE,
+		subscriber_confirmed BOOL,
+		subscriber_ip TEXT,
+		subscriber_key TEXT UNIQUE,
+		subscriber_timestamp integer(128)
 	);");
 } catch(PDOException $e) {
 	print 'Exception : '.$e->getMessage();
